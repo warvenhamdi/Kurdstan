@@ -3,9 +3,9 @@ import csv
 import os
 from datetime import datetime
 from telethon import TelegramClient, events
-from telethon.tl.functions.messages import GetHistoryRequest
 
 # ==================== زانیارییەکانت ====================
+# ئاگاداربە: باشترە ئەمانە لە Environment Variablesـەکانی Railwayـدا دابنێیت
 API_ID = 37308724
 API_HASH = 'dd414cde663ec3ff9f48aefa8b86c1c0'
 BOT_TOKEN = '8879533750:AAGM_vlkYcIh12JsOoWN1iVuCr5RHRv_jMk'
@@ -43,18 +43,13 @@ async def scratch_channel(event):
     try:
         channel = await client.get_entity(CHANNEL_USERNAME)
         
-        history = await client(GetHistoryRequest(
-            peer=channel,
-            limit=limit,
-            offset_date=None,
-            offset_id=0,
-            max_id=0,
-            min_id=0,
-            add_offset=0,
-            hash=0
-        ))
-        
-        messages = history.messages
+        # ==================== چارەسەری کێشەکە لێرەدایە ====================
+        # لەبری GetHistoryRequest، iter_messages بەکاردەهێنین کە بۆ بۆتەکان ڕێگەپێدراوە
+        messages = []
+        async for msg in client.iter_messages(channel, limit=limit):
+            messages.append(msg)
+        # =================================================================
+
         count = len(messages)
         
         filename = f"Ccvkurd426_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"

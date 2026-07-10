@@ -1,97 +1,90 @@
+# -*- coding: utf-8 -*-
 import asyncio
-import csv
 import os
-from datetime import datetime
-from telethon import TelegramClient, events
+from telegram import Bot
+from telegram.error import TelegramError
 
-# ==================== زانیارییەکانت ====================
-API_ID = 37308724
-# 🔴 تکایە API_HASHـە نوێیەکەت لێرە بنووسە (دەتوانی لە my.telegram.org نوێی بکەیتەوە)
-API_HASH = 'dd414cde663ec3ff9f48aefa8b86c1c0' 
-# 🔴 تکایە تۆکنە نوێیەکەت لێرە بنووسە (لە @BotFatherـەوە)
-BOT_TOKEN = '8879533750:AAGM_vlkYcIh12JsOoWN1iVuCr5RHRv_jMk'
+# ===== CONFIG =====
+BOT_TOKEN = "8738218688:AAFQwfwoGEWSLu31h4ETXK4O5g1wW8n1ncU"
+CHANNEL_ID = "@Kurdiranccv"
+ADMIN_ID = 6395195181
+INTERVAL_SECONDS = 2
+# ==============================================
 
-# 🔴 چەناڵەکەی تۆ
-CHANNEL_USERNAME = '@Ccvkurd426'
-# =======================================================
+try:
+    if os.path.exists('cards.txt'):
+        with open('cards.txt', 'r', encoding='utf-8') as f:
+            RAW_CARDS = [line.strip() for line in f if line.strip()]
+        print(f"✅ Loaded {len(RAW_CARDS)} cards from cards.txt")
+    else:
+        RAW_CARDS = []
+        print("⚠️ cards.txt not found!")
+except:
+    RAW_CARDS = []
 
-client = TelegramClient('ccvkurd_scraper', API_ID, API_HASH)
+current_index = 0
 
-@client.on(events.NewMessage(pattern='/start'))
-async def start(event):
-    await event.reply(f"""
-👋 سڵاو! بۆ بۆتی سکراپینگی چەناڵەکەت!
-
-📌 چەناڵ: {CHANNEL_USERNAME}
-⚡ **فەرمانەکان:**
-/scratch - کۆکردنەوەی ١٠٠ پەیام
-/scratch [ژمارە] - کۆکردنەوەی ژمارەی دیاریکراو
-/info - زانیاری
-""")
-
-@client.on(events.NewMessage(pattern='/scratch(?: (\\d+))?'))
-async def scratch_channel(event):
-    limit = int(event.pattern_match.group(1)) if event.pattern_match.group(1) else 100
-    if limit > 1000:
-        await event.reply("❌ زۆرترین ١٠٠٠ پەیام!")
-        return
+async def send_card_message(bot, channel, admin):
+    global current_index
     
-    status = await event.reply(f"⏳ کۆکردنەوەی {limit} پەیام...")
+    if not RAW_CARDS:
+        await bot.send_message(chat_id=admin, text="❌ No cards found in file.")
+        return False
     
-    try:
-        channel = await client.get_entity(CHANNEL_USERNAME)
-        
-        # ==================== چارەسەری کێشەکە ====================
-        # iter_messages بەکاردێنین نەک GetHistoryRequest
-        messages = []
-        async for msg in client.iter_messages(channel, limit=limit):
-            messages.append(msg)
-        # =========================================================
+    if current_index >= len(RAW_CARDS):
+        await bot.send_message(chat_id=admin, text="✅ All cards sent! Bot is stopping now.")
+        print("✅ All cards sent successfully.")
+        return False
+    
+    card_line = RAW_CARDS[current_index]
+    parts = card_line.split('|')
+    
+    if len(parts) >= 4:
+        card_number = parts[0].strip()
+        month = parts[1].strip()
+        year = parts[2].strip()
+        cvv = parts[3].strip()
+    else:
+        await bot.send_message(chat_id=admin, text=f"❌ Error in line: {card_line}")
+        current_index += 1
+        return False
+    
+    # هیچ پشکنینی بانک و ئاڵا لێرە نییە، تەنها ناردنی کارتەکان
+    text = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"  💳  KURD SCRAPPER  💳\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Card   : {card_number}\n"
+        f"Exp    : {month}/{year}\n"
+        f"CVV    : {cvv}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Devs   : @warven_24 & @rojAmedi2"
+    )
 
-        count = len(messages)
-        filename = f"Ccvkurd426_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        
-        with open(filename, 'w', encoding='utf-8', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['ژمارە', 'بەروار', 'پەیام', 'لینک'])
-            
-            for idx, msg in enumerate(messages, 1):
-                date = msg.date.strftime('%Y-%m-%d %H:%M:%S')
-                text = msg.text.replace('\n', ' ') if msg.text else '(میدیا)'
-                link = f"https://t.me/Ccvkurd426/{msg.id}"
-                writer.writerow([idx, date, text[:500], link])
-        
-        await client.send_file(
-            event.chat_id,
-            filename,
-            caption=f"✅ **{count} پەیام کۆکرانەوە!**"
-        )
-        
-        os.remove(filename)
-        await status.delete()
-        
-    except Exception as e:
-        await event.reply(f"❌ **هەڵە:** {str(e)}\n\n💡 دڵنیابە چەناڵەکە گشتییە و بۆتەکە ئەندامە.")
-
-@client.on(events.NewMessage(pattern='/info'))
-async def info(event):
     try:
-        channel = await client.get_entity(CHANNEL_USERNAME)
-        await event.reply(f"""
-📊 **زانیاری چەناڵ**
-📌 ناو: {channel.title}
-🌐 لینک: {CHANNEL_USERNAME}
-""")
-    except Exception as e:
-        await event.reply(f"❌ نەتوانرا زانیاری وەربگیرێت: {e}")
+        await bot.send_message(chat_id=channel, text=text)
+        await bot.send_message(chat_id=admin, text=f"✅ Sent ({current_index+1}/{len(RAW_CARDS)})")
+        print(f"✅ Sent: {card_number}")
+        
+        current_index += 1
+        return True
+    except TelegramError as e:
+        await bot.send_message(chat_id=admin, text=f"❌ Error: {e}")
+        return False
 
 async def main():
-    await client.start(bot_token=BOT_TOKEN)
-    print(f"✅ بۆتەکە کاردەکات! چەناڵ: {CHANNEL_USERNAME}")
-    await client.run_until_disconnected()
-
-if __name__ == '__main__':
+    bot = Bot(token=BOT_TOKEN)
     try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n👋 بۆتەکە راگیرا!")
+        bot.get_me()
+    except TelegramError:
+        print("⚠️ Invalid Token")
+        return
+    
+    while True:
+        result = await send_card_message(bot, CHANNEL_ID, ADMIN_ID)
+        if not result:
+            break
+        await asyncio.sleep(INTERVAL_SECONDS)
+
+if __name__ == "__main__":
+    asyncio.run(main())

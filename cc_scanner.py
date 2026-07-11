@@ -3,18 +3,23 @@ import re
 import asyncio
 from datetime import datetime
 import os
+import time
 
 # ==================== کۆنفیگ ====================
 API_ID = int(os.getenv('API_ID', 37308724))
 API_HASH = os.getenv('API_HASH', 'dd414cde663ec3ff9f48aefa8b86c1c0')
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8738218688:AAEsk2shWSPLsg3Q6FNkTsh7haZbVfY_hD4')
-CHANNEL_TO_MONITOR = os.getenv('CHANNEL_TO_MONITOR', '@Ccv526')
+
+CHANNELS_TO_MONITOR = [
+    '@Ccv526',
+]
+
 DUMP_CHANNEL = os.getenv('DUMP_CHANNEL', '@Kurdchian')
 # ================================================
 
 client = TelegramClient('cc_scanner', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# شێوەی کارت: 16 ژمارە | مانگ | ساڵ | CVV
+# شێوەی کارت
 CC_PATTERN = r'\b(\d{16})\s*[|/:;-]\s*(\d{2})\s*[|/:;-]\s*(\d{2,4})\s*[|/:;-]\s*(\d{3,4})\b'
 
 def luhn_check(card_number):
@@ -28,42 +33,80 @@ def luhn_check(card_number):
             total += digit
     return total % 10 == 0
 
-@client.on(events.NewMessage(chats=CHANNEL_TO_MONITOR))
+@client.on(events.NewMessage(chats=CHANNELS_TO_MONITOR))
 async def cc_scanner(event):
-    if not event.raw_text:
-        return
+    try:
+        if not event.raw_text:
+            return
 
-    matches = re.findall(CC_PATTERN, event.raw_text)
-    if not matches:
-        return
+        matches = re.findall(CC_PATTERN, event.raw_text)
+        if not matches:
+            return
 
-    found_cards = []
-    for card_num, month, year, cvv in matches:
-        year_full = f"20{year}" if len(year) == 2 else year
-        if luhn_check(card_num):
-            result = (
-                f"✅ **CC Approved**\n"
-                f"💳 کارت: `{card_num}`\n"
-                f"📅 مانگ/ساڵ: {month}/{year_full}\n"
-                f"🔐 CVV: `{cvv}`\n"
-                f"🔗 [بینینی پەیام]({event.message.link})\n"
-                f"🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"{'─'*30}"
-            )
-            found_cards.append(result)
-            print(f"[+] کارتی پشتڕاستکراو: {card_num}")
+        found_cards = []
+        for card_num, month, year, cvv in matches:
+            year_full = f"20{year}" if len(year) == 2 else year
+            if luhn_check(card_num):
+                result = (
+                    f"✅ **CC Approved**\n"
+                    f"💳 کارت: `{card_num}`\n"
+                    f"📅 مانگ/ساڵ: {month}/{year_full}\n"
+                    f"🔐 CVV: `{cvv}`\n"
+                    f"📌 چەناڵ: {event.chat.username or event.chat.title}\n"
+                    f"🔗 [بینینی پەیام]({event.message.link})\n"
+                    f"🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"{'─'*30}"
+                )
+                found_cards.append(result)
+                print(f"[+] کارتی پشتڕاستکراو لە @{event.chat.username}: {card_num}")
 
-    if found_cards:
-        await client.send_message(DUMP_CHANNEL, "\n\n".join(found_cards))
+        if found_cards:
+            # هەر پەیامێک بە 2 چرکە دەنێرێت (بۆ خێرایی کەمکردنەوە)
+            for card in found_cards:
+                await client.send_message(DUMP_CHANNEL, card)
+                await asyncio.sleep(2)  # ماوەی نێوان هەر پەیامێک
 
+    except Exception as e:
+        print(f"❌ هەڵە: {e}")
+        await asyncio.sleep(5)  # چاوەڕوانی 5 چرکە دوای هەڵە
+
+@client.on(events.NewMessage(pattern='/start'))
+async def start_command(event):
+    await event.reply(
+        "🤖 **بۆتی سکانکردنی CC**\n\n"
+        "📌 چەناڵەکان:\n" + 
+        "\n".join([f"• {ch}" for ch in CHANNELS_TO_MONITOR]) +
+        f"\n\n📤 ئەنجامەکان دەنێردرێن بۆ: {DUMP_CHANNEL}\n"
+        "🟢 بۆتەکە کاردەکات..."
+    )
+
+@client.on(events.NewMessage(pattern='/status'))
+async def status_command(event):
+    await event.reply(
+        f"✅ **بۆتەکە کاردەکات**\n"
+        f"📌 چاودێری {len(CHANNELS_TO_MONITOR)} چەناڵ\n"
+        f"📤 دەرهات: {DUMP_CHANNEL}\n"
+        f"🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+# ================ سەرەکی ================
 async def main():
-    print("="*40)
-    print("🤖 بۆتی سکانکردنی CC")
-    print(f"📌 چەناڵی سەرچاوە: {CHANNEL_TO_MONITOR}")
-    print(f"📌 چەناڵی دەرهات: {DUMP_CHANNEL}")
-    print("="*40)
+    print("="*50)
+    print("🤖 بۆتی سکانکردنی CC (ڕووتر)")
+    print(f"📌 چەناڵەکان:")
+    for ch in CHANNELS_TO_MONITOR:
+        print(f"   • {ch}")
+    print(f"📤 چەناڵی دەرهات: {DUMP_CHANNEL}")
+    print("="*50)
     print("بۆتەکە کاردەکات... چاوەڕوانی پەیامەکان")
-    await client.run_until_disconnected()
+    
+    try:
+        await client.run_until_disconnected()
+    except Exception as e:
+        print(f"❌ هەڵەی سەرەکی: {e}")
+        await asyncio.sleep(10)
+        # دووبارە دەستپێکردنەوە
+        await main()
 
 if __name__ == '__main__':
     asyncio.run(main())

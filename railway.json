@@ -1,10 +1,9 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "pip install -r requirements.txt"
+    "builder": "DOCKERFILE"
   },
   "deploy": {
     "startCommand": "python cc_scanner.py",
-    "healthcheckPath": "/"
+    "healthcheckPath": null
   }
 }

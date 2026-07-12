@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import random
+import re
 from telegram import Bot
 from telegram.error import TelegramError
 
@@ -8,7 +9,7 @@ from telegram.error import TelegramError
 BOT_TOKEN = "8998790793:AAGawaYBBzHT-MlCv9x7eS3nnehsLTMIdg4"
 CHANNEL_ID = "@Cvvcard828"
 ADMIN_ID = 8130764336
-INTERVAL_SECONDS = 2
+INTERVAL_SECONDS = 5  # 🔹 کرایە ٥ چرکە
 
 # 🔹 BIN و زانیارییەکانی
 BIN = "444796"
@@ -19,7 +20,6 @@ CARD_TYPE = "VISA - CREDIT - TRADITIONAL"
 NUMBER_OF_CARDS = 200
 # ==============================================
 
-# داتابەیس (تەنها BINە پێویستەکان)
 BIN_DATABASE = {
     "444796": {"bank": "CREDIT ONE BANK, NATIONAL ASSOCIATION", "country": "UNITED STATES 🇺🇸"},
 }
@@ -63,12 +63,11 @@ async def send_card_message(bot, channel, admin):
     global current_index
 
     if not CARDS_LIST:
-        await bot.send_message(chat_id=admin, text="❌ هیچ کارتێک دروست نەکراوە.")
+        print("❌ هیچ کارتێک دروست نەکراوە.")
         return False
 
     if current_index >= len(CARDS_LIST):
-        await bot.send_message(chat_id=admin, text="✅ هەموو کارتەکان نێردران! بۆت وەستا.")
-        print("✅ هەموو کارتەکان نێردران.")
+        print("✅ هەموو کارتەکان نێردران!")
         return False
 
     card_line = CARDS_LIST[current_index]
@@ -100,15 +99,23 @@ async def send_card_message(bot, channel, admin):
         f"Devs   : @warven_24 & @rojAmedi2"
     )
 
-    try:
-        await bot.send_message(chat_id=channel, text=text)
-        await bot.send_message(chat_id=admin, text=f"✅ نێردرا ({current_index+1}/{len(CARDS_LIST)})")
-        print(f"✅ نێردرا: {card_number}")
-        current_index += 1
-        return True
-    except TelegramError as e:
-        await bot.send_message(chat_id=admin, text=f"❌ هەڵە: {e}")
-        return False
+    while True:
+        try:
+            await bot.send_message(chat_id=channel, text=text)
+            print(f"✅ نێردرا: {card_number} ({current_index+1}/{len(CARDS_LIST)})")
+            current_index += 1
+            return True
+        
+        except TelegramError as e:
+            err_msg = str(e)
+            if "Flood control" in err_msg:
+                match = re.search(r"Retry in (\d+)", err_msg)
+                wait_time = int(match.group(1)) if match else 30
+                print(f"⚠️ Flood control. چاوەڕوانی {wait_time} چرکە بکە...")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"❌ هەڵەی تر ڕوویدا: {err_msg}")
+                return False
 
 async def main():
     bot = Bot(token=BOT_TOKEN)
@@ -118,7 +125,7 @@ async def main():
         print("⚠️ تۆکەنەکە نادروستە")
         return
 
-    print("🚀 بۆت دەستی پێکرد. کارتەکان دەنێردرێن...")
+    print("🚀 بۆت دەستی پێکرد (٥ چرکە لە نێوان کارتەکان)...")
     while True:
         result = await send_card_message(bot, CHANNEL_ID, ADMIN_ID)
         if not result:

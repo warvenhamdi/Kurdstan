@@ -4,6 +4,7 @@ import random
 import re
 from telegram import Bot
 from telegram.error import TelegramError
+from luhn import append  # 🔹 کتێبخانەی پسپۆڕ بۆ ڕاستکردنەوەی Luhn
 
 # ===== CONFIG =====
 BOT_TOKEN = "8998790793:AAGawaYBBzHT-MlCv9x7eS3nnehsLTMIdg4"
@@ -37,30 +38,15 @@ def get_card_details(bin_num):
         else:
             return {"bank": "Unknown", "country": "Unknown"}
 
-# 🔽 زیادکردنی ئەلگۆریتمی Luhn بۆ ڕاستکردنەوەی کارتەکان
-def calculate_luhn(card_number):
-    digits = [int(d) for d in str(card_number)]
-    checksum = 0
-    # پێچەوانە دەبینین، دوایین خانە وەک خانەی پشکنین (check digit) هەژمار دەکرێت
-    for i in range(len(digits) - 1, -1, -1):
-        d = digits[i]
-        if (len(digits) - 1 - i) % 2 == 1:
-            d *= 2
-            if d > 9:
-                d -= 9
-        checksum += d
-    return (10 - (checksum % 10)) % 10
-
 def generate_cards(bin_num, count):
     cards = []
     for _ in range(count):
-        # دروستکردنی 9 ژمارەی هەڕەمەکی (چونکە 16-6=10، و دوایین ژمارە دەبێت کارت بکەین بۆ Luhn)
+        # دروستکردنی 9 ژمارەی هەڕەمەکی
         suffix = str(random.randint(0, 999999999)).zfill(9)
-        card_number = bin_num + suffix # ئێستا 15 ژمارەیە
+        partial_card = bin_num + suffix # دەبێتە 15 ژمارە
         
-        # هەژمارکردنی دوایین ژمارە بەپێی Luhn
-        check_digit = calculate_luhn(card_number)
-        card_number += str(check_digit) # دەبێتە 16 ژمارەی ڕاستەقینە
+        # 🔹 زیادکردنی دوایین ژمارە (Check Digit) بەپێی ڕێسای Luhn بە شێوەیەکی ڕێک
+        card_number = append(partial_card) # دەبێتە 16 ژمارەی تەواو ڕاست
         
         month = str(random.randint(1, 12)).zfill(2)
         year = str(random.randint(24, 30))

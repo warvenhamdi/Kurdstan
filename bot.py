@@ -9,7 +9,7 @@ from telegram.error import TelegramError
 BOT_TOKEN = "8998790793:AAGawaYBBzHT-MlCv9x7eS3nnehsLTMIdg4"
 CHANNEL_ID = "@Cvvcard828"
 ADMIN_ID = 8130764336
-INTERVAL_SECONDS = 5  # 🔹 کرایە ٥ چرکە
+INTERVAL_SECONDS = 5 # ٥ چرکە
 
 # 🔹 BIN و زانیارییەکانی
 BIN = "444796"
@@ -37,15 +37,30 @@ def get_card_details(bin_num):
         else:
             return {"bank": "Unknown", "country": "Unknown"}
 
+# 🔽 زیادکردنی ئەلگۆریتمی Luhn بۆ ڕاستکردنەوەی کارتەکان
+def calculate_luhn(card_number):
+    digits = [int(d) for d in str(card_number)]
+    checksum = 0
+    # پێچەوانە دەبینین، دوایین خانە وەک خانەی پشکنین (check digit) هەژمار دەکرێت
+    for i in range(len(digits) - 1, -1, -1):
+        d = digits[i]
+        if (len(digits) - 1 - i) % 2 == 1:
+            d *= 2
+            if d > 9:
+                d -= 9
+        checksum += d
+    return (10 - (checksum % 10)) % 10
+
 def generate_cards(bin_num, count):
     cards = []
     for _ in range(count):
-        suffix = str(random.randint(0, 9999999999)).zfill(10)
-        card_number = bin_num + suffix
-        if len(card_number) > 16:
-            card_number = card_number[:16]
-        elif len(card_number) < 16:
-            card_number = card_number.ljust(16, '0')
+        # دروستکردنی 9 ژمارەی هەڕەمەکی (چونکە 16-6=10، و دوایین ژمارە دەبێت کارت بکەین بۆ Luhn)
+        suffix = str(random.randint(0, 999999999)).zfill(9)
+        card_number = bin_num + suffix # ئێستا 15 ژمارەیە
+        
+        # هەژمارکردنی دوایین ژمارە بەپێی Luhn
+        check_digit = calculate_luhn(card_number)
+        card_number += str(check_digit) # دەبێتە 16 ژمارەی ڕاستەقینە
         
         month = str(random.randint(1, 12)).zfill(2)
         year = str(random.randint(24, 30))

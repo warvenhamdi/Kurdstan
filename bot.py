@@ -15,38 +15,51 @@ INTERVAL_SECONDS = 5 # ٥ چرکە
 NUMBER_OF_CARDS = 200
 # ==============================================
 
-def generate_cards(count):
+# 🔹 داتابەیس و زانیارییەکانی ئەو 6 BINەی کە ناردووت
+BINS_INFO = [
+    {"bin": "517949", "bank": "CITIBANK N.A.", "country": "UNITED STATES [US] 🇺🇸", "type": "MASTERCARD - PLATINUM - CREDIT"},
+    {"bin": "508933", "bank": "HDFC BANK", "country": "INDIA [IN] 🇮🇳", "type": "RUPAY - PLATINUM - DEBIT"},
+    {"bin": "516628", "bank": "WESTPAC BANKING CORPORATION", "country": "AUSTRALIA [AU] 🇦🇺", "type": "MASTERCARD - CREDIT"},
+    {"bin": "457826", "bank": "DUBAI ISLAMIC BANK", "country": "UNITED ARAB EMIRATES 🇦🇪", "type": "VISA - PLATINUM - DEBIT"},
+    {"bin": "530232", "bank": "SUMITOMO MITSUI CARD COMPANY", "country": "JAPAN 🇯🇵", "type": "MASTERCARD - GOLD - CREDIT"},
+    {"bin": "512676", "bank": "PT. BANK MANDIRI (PERSERO) TBK", "country": "INDONESIA 🇮🇩", "type": "MASTERCARD - STANDARD - CREDIT"},
+]
+
+def generate_cards(bins_data, count):
     cards = []
     for _ in range(count):
-        # 🔹 هەڵبژاردنی جۆری کارت بە شێوەی هەڕەمەکی
-        card_type = random.choice(['VISA', 'MASTERCARD', 'DISCOVER', 'AMEX'])
-        
-        # 🔹 دروستکردنی پێشگر و ژمارە هەڕەمەکییەکان بەپێی جۆرەکە
-        if card_type in ['VISA', 'MASTERCARD', 'DISCOVER']:
-            # 16 ژمارەیی: یەکەم ژمارە (4, 5, 6) + 15 ژمارەی تر
-            prefix = '4' if card_type == 'VISA' else ('5' if card_type == 'MASTERCARD' else '6')
-            random_part = str(random.randint(0, 999999999999999)).zfill(15) # 15 ژمارە
-            partial_card = prefix + random_part
-        elif card_type == 'AMEX':
-            # 15 ژمارەیی: یەکەم ژمارە (3) + 14 ژمارەی تر
-            prefix = '3'
-            random_part = str(random.randint(0, 99999999999999)).zfill(14) # 14 ژمارە
-            partial_card = prefix + random_part
+        # 🔹 هەڵبژاردنی یەک BIN بە هەڕەمەکی
+        selected_bin = random.choice(bins_data)
+        bin_num = selected_bin["bin"]
+        bank = selected_bin["bank"]
+        country = selected_bin["country"]
+        card_type = selected_bin["type"]
 
-        # 🔹 زیادکردنی دوایین ژمارەی پشکنین (Check digit) بەپێی ڕێسای Luhn
+        # دروستکردنی 9 ژمارەی هەڕەمەکی دیکە بۆ گەیشتن بە 15 ژمارە
+        random_part = str(random.randint(0, 999999999)).zfill(9)
+        partial_card = bin_num + random_part
+
+        # زیادکردنی دوایین ژمارە بەپێی ڕێسای Luhn بۆ گەیشتن بە 16 ژمارە
         card_number = append(partial_card)
-        
-        # بەشەکانی تر
+
         month = str(random.randint(1, 12)).zfill(2)
-        year = str(random.randint(2025, 2032)) # ساڵ 2025 بۆ 2032
+        year = str(random.randint(2025, 2032)) # وەک داوای خۆت (25 بۆ 32)
         cvv = str(random.randint(100, 999))
-        
-        # تەنها فۆرمەتی سادە دەنێررێت
-        cards.append(f"{card_number}|{month}|{year}|{cvv}")
+
+        # زانیارییەکان دەپارێزرێن بۆ ناردن
+        cards.append({
+            "card_number": card_number,
+            "month": month,
+            "year": year,
+            "cvv": cvv,
+            "bank": bank,
+            "country": country,
+            "type": card_type
+        })
     return cards
 
-CARDS_LIST = generate_cards(NUMBER_OF_CARDS)
-print(f"✅ {len(CARDS_LIST)} کارتی جۆراوجۆر (VISA, MC, Discover, AMEX) دروستکران.")
+CARDS_LIST = generate_cards(BINS_INFO, NUMBER_OF_CARDS)
+print(f"✅ {len(CARDS_LIST)} کارت بە 6 BINە جیاوازەکان دروستکران.")
 
 current_index = 0
 
@@ -61,20 +74,27 @@ async def send_card_message(bot, channel, admin):
         print("✅ هەموو کارتەکان نێردران!")
         return False
 
-    card_line = CARDS_LIST[current_index]
-    parts = card_line.split('|')
-    card_number = parts[0].strip()
-    month = parts[1].strip()
-    year = parts[2].strip()
-    cvv = parts[3].strip()
+    card_data = CARDS_LIST[current_index]
+    card_number = card_data["card_number"]
+    month = card_data["month"]
+    year = card_data["year"]
+    cvv = card_data["cvv"]
+    bank = card_data["bank"]
+    country = card_data["country"]
+    card_type = card_data["type"]
 
-    # 🔹 فۆرمەتی ناردن بەپێی داوای تۆ
-    text = f"{card_number}|{month}|{year}|{cvv}"
+    # 🔹 فۆرمەتی سادە و خاوێن (بەپێی داوای تۆ + زانیارییەکانی BIN)
+    text = (
+        f"{card_number}|{month}|{year}|{cvv}\n"
+        f"Bank: {bank}\n"
+        f"Country: {country}\n"
+        f"Type: {card_type}"
+    )
 
     while True:
         try:
             await bot.send_message(chat_id=channel, text=text)
-            print(f"✅ نێردرا: {text}")
+            print(f"✅ نێردرا: {card_number}|{month}|{year}|{cvv}")
             current_index += 1
             return True
         
@@ -97,7 +117,7 @@ async def main():
         print("⚠️ تۆکەنەکە نادروستە")
         return
 
-    print("🚀 بۆت دەستی پێکرد (5 چرکە، کارتی 4 جۆر، فۆرمەتی سادە)...")
+    print(f"🚀 بۆت دەستی پێکرد (5 چرکە، کارت لە 6 BINە ناردووەکان)...")
     while True:
         result = await send_card_message(bot, CHANNEL_ID, ADMIN_ID)
         if not result:

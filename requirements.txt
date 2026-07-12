@@ -1,1 +1,2 @@
-nano requirements.txt
+python-telegram-bot
+luhn
